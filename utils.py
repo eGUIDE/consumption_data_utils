@@ -1,32 +1,75 @@
 import pandas as pd
-import os,pickle
+import os,pickle,shutil
 from tqdm import tqdm
 import numpy as np
 import multiprocessing
 import matplotlib.pyplot as plt
 from functools import partial
 from matplotlib import cbook
+import datetime
 
 def loggers(log_filename,data, params=None):
     try:
         f = open(log_filename)
-        with open(log_filename, 'a') as src:
-            for k in range(len(data)-1):
-                src.write(str(data[k]) + ",")
-            src.write(str(data[-1]) +"\n")
+        data.to_csv(log_filename, mode='a', header=False)
+        #with open(log_filename, 'a') as src:
+        #    src.writelines(data)
+            #for k in range(len(data)-1):
+            #    src.write(str(data[k]) + ",")
+            #src.write(str(data[-1]) +"\n")
     except Exception as err:
         print('{} File did not exist but has been created and the data written to it'.format(log_filename))
-        with open(log_filename, 'w') as src:
+        data.to_csv(log_filename)
+        #with open(log_filename, 'w') as src:
             #print(params)
-            for k in range(len(params)-1):
-                src.write(str(params[k]) + ",")
-            src.write(str(params[-1])+"\n")
+         #   for k in range(len(params)-1):
+         #       src.write(str(params[k]) + ",")
+         #   src.write(str(params[-1])+"\n")
+         #   src.writelines(data)
             #src.write(str(params) + "\n")
-            for k in range(len(data)-1):
-                src.write(str(data[k]) + ",")
-            src.write(str(data[-1]) +"\n")
+            #for k in range(len(data)-1):
+            #    src.write(str(data[k]) + ",")
+            #src.write(str(data[-1]) +"\n")
 
-def load_data(output_data_dir_by_year,datafile,params,transaction_date_param,chunksize=1000000):
+
+def get_data_size(datafile,chunksize=1e6,buffersize=0):
+    '''
+    This file computes the total number of entries in the data
+    datafile:  electricity data transaction file
+    chunksize: how much of the data to read at each point, Default is 1e-6
+    buffersize: already read entries
+    '''
+    df =  pd.read_csv(datafile, nrows=chunksize,skiprows = buffersize)
+    buffersize =  int(np.floor(os.path.getsize(datafile) / df.memory_usage(index=True).sum()))
+    print('Dataset has would sliced into {} chunks and parallel proccessed '.format(buffersize))
+    return buffersize, df.columns
+
+def read_file_write_to_chunks(tmp_output_path,datafile,transaction_date_param,params,columns,chunksize,chunk_idx):
+    print('Writing to csv for chunk idx {}'.format(chunk_idx))
+    try:
+        chunk = pd.read_csv(datafile, skiprows=int(chunksize*chunk_idx),nrows=chunksize)
+        chunk.columns = columns
+        chunk[transaction_date_param] =  pd.to_datetime(chunk[transaction_date_param])
+        chunk['year'] = chunk[transaction_date_param].dt.year
+        grouped_by_year = chunk.groupby('year')
+        for name, group in grouped_by_year:
+            path_token = os.path.join(tmp_output_path,'transactions_for_chunkidx_{}_year_{}_.csv'.format(chunk_idx,name))
+        
+            group[params].to_csv(path_token, header=False)
+            
+    except Exception as err:
+        print('Error for chunk {}: '.format(chunk_idx),err)
+
+def merge_chunk_data_by_year_chunks(tmp_output_path,output_data_dir_by_year,params,year):
+    relevant_files =  os.listdir(tmp_output_path)
+    summary_df = pd.DataFrame(columns=params)
+    summary_df.to_csv(os.path.join(output_data_dir_by_year ,'transactions_for_year_{}_.csv'.format(year))) 
+    for curfile in relevant_files:
+        if str(year) in curfile:
+            cur_df = pd.read_csv(os.path.join(tmp_output_path,curfile), sep=",")
+            cur_df[params].to_csv(os.path.join(output_data_dir_by_year,'transactions_for_year_{}_.csv'.format(year)),mode='a',header=False)
+
+def load_data(output_data_dir_by_year,datafile,params,transaction_date_param,workers=1,chunksize=1000000):
     '''
     This function loads data in chunks, writes outputs to text file by year
     output_data_dir_by_year : path to write out data by year
@@ -35,14 +78,44 @@ def load_data(output_data_dir_by_year,datafile,params,transaction_date_param,chu
     chunksize: file size to load (adjust accordingt to system)
     '''
     print('Starting the process of separating transactions by year')
-    for chunk in tqdm(pd.read_csv(datafile, chunksize=chunksize)):
-        chunk[transaction_date_param] =  pd.to_datetime(chunk[transaction_date_param])
-        for idx , row in chunk.iterrows():
-            loggers(os.path.join(output_data_dir_by_year,'transactions_for_year_{}_.txt'.format(row[transaction_date_param].year)),
-                 row[params].tolist(),params)
+    tmp_folder = 'chunking_tmp_folder'
+
+    num_file_entries, column_names = get_data_size(datafile,chunksize)
+    num_file_read_idxs = [k for k in range(num_file_entries)]
+    
+    if os.path.exists(tmp_folder):
+        shutil.rmtree(tmp_folder)
+    os.mkdir(tmp_folder)
+
+    
+    p = multiprocessing.Pool(processes=workers)
+    read_file_write_to_chunks_func = partial(read_file_write_to_chunks,tmp_folder,datafile,transaction_date_param,params,column_names,chunksize)
+    p.map(read_file_write_to_chunks_func,num_file_read_idxs)
+    p.close()
+    p.join()
+    
+   # aggregate all txt files by year and delete tmp_dir
+    chunks_by_year = os.listdir(tmp_folder)
+    years =  [int(k.split('_')[-2]) for k in chunks_by_year]
+    years =  np.unique(years)
+    if workers > len(years):
+        workers =len(years)
+
+    p = multiprocessing.Pool(processes=workers)
+    merge_chunk_data_by_year_chunks_func = partial(merge_chunk_data_by_year_chunks,tmp_folder,output_data_dir_by_year,params)
+    p.map(merge_chunk_data_by_year_chunks_func,years)
+    p.close()
+    p.join()
+
+    #delete tmp directory
+    shutil.rmtree(tmp_folder)
+
     print('Done with separating transactions by year')
+
         
 def get_aggregation(frequency,transaction_date_param,consumption_param, summary_folder,curfile):
+    '''
+    '''
     data = pd.read_csv(curfile, sep=",")
     year = curfile.split('_')[-2]
     data[transaction_date_param] = pd.to_datetime(data[transaction_date_param])
@@ -109,3 +182,18 @@ def plot_temporal_by_frequency(agg_summarize_pathname_by_year_and_frequency, fig
     ax.set_xticklabels(sorted_keys,rotation=90);
     plt.savefig(figname)
     plt.show()
+
+
+if __name__ == '__main__':
+    raw_data = '../cons_utils_data/reg_data_combined.csv'  # file containing raw data
+# df = pd.read_csv(raw_data)
+    data_dir_transactions_by_year = '../cons_utils_data/transactions_by_year'
+    parameters = ['consumer_id','transaction_date','kWh_sold'] # parameters to store when separating data by year
+    transaction_date_parameter = 'transaction_date'
+    consumption_parameter = 'kWh_sold'
+    frequency = 'by_month' # frequency of aggregation
+    aggregation_transactions_by_yr_and_frequency = '../cons_utils_data/transactions_by_year_and_freq'
+    workers = 32
+    print('Start time is : ', datetime.datetime.now())
+    load_data(data_dir_transactions_by_year,raw_data,parameters, transaction_date_parameter,workers)
+    print('End time is : ', datetime.datetime.now())
