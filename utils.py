@@ -41,14 +41,17 @@ def get_data_size(datafile,chunksize=1e6,buffersize=0):
     '''
     df =  pd.read_csv(datafile, nrows=chunksize,skiprows = buffersize)
     buffersize =  int(np.floor(os.path.getsize(datafile) / df.memory_usage(index=True).sum()))
-    print('Dataset has would sliced into {} chunks and parallel proccessed '.format(buffersize))
+    print('Dataset will be sliced into {} chunks and parallel proccessed '.format(buffersize))
     return buffersize, df.columns
 
 def read_file_write_to_chunks(tmp_output_path,datafile,transaction_date_param,params,columns,chunksize,chunk_idx):
     print('Writing to csv for chunk idx {}'.format(chunk_idx))
     try:
-        chunk = pd.read_csv(datafile, skiprows=int(chunksize*chunk_idx),nrows=chunksize)
-        chunk.columns = columns
+        if chunk_idx != 0:
+            chunk = pd.read_csv(datafile, skiprows=int(chunksize*chunk_idx),nrows=chunksize,header=None)
+            chunk.columns = columns
+        else:
+            chunk = pd.read_csv(datafile, skiprows=int(chunksize*chunk_idx),nrows=chunksize)
         chunk[transaction_date_param] =  pd.to_datetime(chunk[transaction_date_param])
         chunk['year'] = chunk[transaction_date_param].dt.year
         grouped_by_year = chunk.groupby('year')
@@ -67,6 +70,8 @@ def merge_chunk_data_by_year_chunks(tmp_output_path,output_data_dir_by_year,para
     for curfile in relevant_files:
         if str(year) in curfile:
             cur_df = pd.read_csv(os.path.join(tmp_output_path,curfile), sep=",")
+            cur_df = cur_df.iloc[:,-len(params):]
+            cur_df.columns = params
             cur_df[params].to_csv(os.path.join(output_data_dir_by_year,'transactions_for_year_{}_.csv'.format(year)),mode='a',header=False)
 
 def load_data(output_data_dir_by_year,datafile,params,transaction_date_param,workers=1,chunksize=1000000):
@@ -100,6 +105,13 @@ def load_data(output_data_dir_by_year,datafile,params,transaction_date_param,wor
     years =  np.unique(years)
     if workers > len(years):
         workers =len(years)
+
+
+    if os.path.exists(output_data_dir_by_year):
+        pass
+        #shutil.rmtree(output_data_dir_by_year)
+    else:
+        os.mkdir(output_data_dir_by_year)
 
     p = multiprocessing.Pool(processes=workers)
     merge_chunk_data_by_year_chunks_func = partial(merge_chunk_data_by_year_chunks,tmp_folder,output_data_dir_by_year,params)
@@ -161,14 +173,30 @@ def aggregate_data_by_frequency(output_data_dir_by_year,aggregation_summary_fold
      p.join()
     
 
+def merge_summary_dicts(output_data_dir_by_year,output_summary_file_path, transaction_date_param,consumption_param , frequency='by_month', workers =1):
+    tmp_agg_folder  = 'tmp_agg_folder'
+    if os.path.exists(tmp_agg_folder):
+        shutil.rmtree(tmp_agg_folder)
+    os.mkdir(tmp_agg_folder)
+    aggregate_data_by_frequency(output_data_dir_by_year,tmp_agg_folder,transaction_date_param,consumption_param, frequency,workers)
+    all_agg_files = os.listdir(tmp_agg_folder)
+    initial_dict = pickle.load(open(os.path.join(tmp_agg_folder,all_agg_files[0])))
+    for curfile in all_agg_files[1:]:
+        new_dict =  pickle.load(open(os.path.join(tmp_agg_folder,curfile)))
+        initial_dict.update(new_dict)
+
+    pickle.dump(os.path.join(output_summary_file_path,'transactions_summary_frequency_{}_param_{}_allyears_.pck'.format(frequency,consumption_param)))
+    shutil.rmtree(tmp_agg_folder)
+
 def plot_temporal_by_frequency(agg_summarize_pathname_by_year_and_frequency, figname = 'date_timeseries.png'):
-    all_files = sorted(os.listdir(agg_summarize_pathname_by_year_and_frequency))
-    all_files = [os.path.join(agg_summarize_pathname_by_year_and_frequency,k) for k in all_files]
-    ordered_data = {}
-    for curfile in all_files:
-        data = pickle.load(open(curfile,'rb'))
-        for k , v in data.items():
-            ordered_data[k]=v
+    #all_files = sorted(os.listdir(agg_summarize_pathname_by_year_and_frequency))
+    #all_files = [os.path.join(agg_summarize_pathname_by_year_and_frequency,k) for k in all_files]
+    #ordered_data = {}
+    #for curfile in all_files:
+    #    data = pickle.load(open(curfile,'rb'))
+    #    for k , v in data.items():
+    #        ordered_data[k]=v
+    ordered_data = pickle.load(open(agg_summarize_pathname_by_year_and_frequency,'rb'))
     sorted_keys_raw = sorted(list(ordered_data.keys()))
     sorted_dates = [pd.to_datetime(k) for k in sorted_keys_raw]
     sorted_dates_idx = np.argsort(sorted_dates)
@@ -188,12 +216,13 @@ if __name__ == '__main__':
     raw_data = '../cons_utils_data/reg_data_combined.csv'  # file containing raw data
 # df = pd.read_csv(raw_data)
     data_dir_transactions_by_year = '../cons_utils_data/transactions_by_year'
-    parameters = ['consumer_id','transaction_date','kWh_sold'] # parameters to store when separating data by year
+    parameters = ['meter_serial_number','consumer_id','transaction_date','kWh_sold'] # parameters to store when separating data by year
     transaction_date_parameter = 'transaction_date'
     consumption_parameter = 'kWh_sold'
     frequency = 'by_month' # frequency of aggregation
-    aggregation_transactions_by_yr_and_frequency = '../cons_utils_data/transactions_by_year_and_freq'
+    aggregation_transactions_by_yr_and_frequency = '../cons_utils_data'
     workers = 32
     print('Start time is : ', datetime.datetime.now())
-    load_data(data_dir_transactions_by_year,raw_data,parameters, transaction_date_parameter,workers)
-    print('End time is : ', datetime.datetime.now())
+    load_data(data_dir_transactions_by_year,raw_data,parameters,transaction_date_parameter,workers)
+    merge_summary_dicts(data_dir_transactions_by_year,aggregation_transactions_by_yr_and_frequency,transaction_date_parameter,consumption_parameter , frequency,workers=4)#load_data(data_dir_transactions_by_year,raw_data,parameters, transaction_date_parameter,workers)
+    print('End time   is : ', datetime.datetime.now())
