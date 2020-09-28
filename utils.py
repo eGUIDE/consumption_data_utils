@@ -1,6 +1,6 @@
 import pandas as pd
 import os,pickle,shutil
-from tqdm import tqdm
+#from tqdm import tqdm
 import numpy as np
 import multiprocessing
 import matplotlib.pyplot as plt
@@ -180,12 +180,12 @@ def merge_summary_dicts(output_data_dir_by_year,output_summary_file_path, transa
     os.mkdir(tmp_agg_folder)
     aggregate_data_by_frequency(output_data_dir_by_year,tmp_agg_folder,transaction_date_param,consumption_param, frequency,workers)
     all_agg_files = os.listdir(tmp_agg_folder)
-    initial_dict = pickle.load(open(os.path.join(tmp_agg_folder,all_agg_files[0])))
+    initial_dict = pickle.load(open(os.path.join(tmp_agg_folder,all_agg_files[0]),'rb'))
     for curfile in all_agg_files[1:]:
-        new_dict =  pickle.load(open(os.path.join(tmp_agg_folder,curfile)))
+        new_dict =  pickle.load(open(os.path.join(tmp_agg_folder,curfile),'rb'))
         initial_dict.update(new_dict)
 
-    pickle.dump(os.path.join(output_summary_file_path,'transactions_summary_frequency_{}_param_{}_allyears_.pck'.format(frequency,consumption_param)))
+    pickle.dump(initial_dict,open(os.path.join(output_summary_file_path,'transactions_summary_frequency_{}_param_{}_allyears_.pck'.format(frequency,consumption_param)),'wb'))
     shutil.rmtree(tmp_agg_folder)
 
 def plot_temporal_by_frequency(agg_summarize_pathname_by_year_and_frequency, figname = 'date_timeseries.png'):
@@ -213,16 +213,17 @@ def plot_temporal_by_frequency(agg_summarize_pathname_by_year_and_frequency, fig
 
 
 if __name__ == '__main__':
-    raw_data = '../cons_utils_data/reg_data_combined.csv'  # file containing raw data
+    raw_data = '/home/jtaneja/data/consumption_data/Rwanda/consumption/REG_consumption_data/reg_data_combined.csv'  # file containing raw data
 # df = pd.read_csv(raw_data)
-    data_dir_transactions_by_year = '../cons_utils_data/transactions_by_year'
+    data_dir_transactions_by_year = 'data/transactions_by_year'
     parameters = ['meter_serial_number','consumer_id','transaction_date','kWh_sold'] # parameters to store when separating data by year
     transaction_date_parameter = 'transaction_date'
     consumption_parameter = 'kWh_sold'
     frequency = 'by_month' # frequency of aggregation
-    aggregation_transactions_by_yr_and_frequency = '../cons_utils_data'
-    workers = 32
+    aggregation_transactions_by_yr_and_frequency = 'data'
+    workers = 4
     print('Start time is : ', datetime.datetime.now())
-    load_data(data_dir_transactions_by_year,raw_data,parameters,transaction_date_parameter,workers)
-    merge_summary_dicts(data_dir_transactions_by_year,aggregation_transactions_by_yr_and_frequency,transaction_date_parameter,consumption_parameter , frequency,workers=4)#load_data(data_dir_transactions_by_year,raw_data,parameters, transaction_date_parameter,workers)
+    #load_data(data_dir_transactions_by_year,raw_data,parameters,transaction_date_parameter,workers)
+    print('Done with load_data function starting merging and time is : ', datetime.datetime.now())
+    merge_summary_dicts(data_dir_transactions_by_year,aggregation_transactions_by_yr_and_frequency,transaction_date_parameter,consumption_parameter , frequency,workers)#load_data(data_dir_transactions_by_year,raw_data,parameters, transaction_date_parameter,workers)
     print('End time   is : ', datetime.datetime.now())
