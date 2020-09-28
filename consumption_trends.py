@@ -3,8 +3,6 @@ import numpy as np
 import os, pickle
 from matplotlib import cbook
 
-# def get_medians_by_connection_month(dataframe):
-
 
 def get_data_by_calendar_month(data, transaction_date_param, frequency='by_month'):
     data[transaction_date_param] = pd.to_datetime(data[transaction_date_param])
