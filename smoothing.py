@@ -31,6 +31,6 @@ def smoothing_func(df):
 	days['days']=days.apply(lambda rows: func(days,rows.name),axis=1)
 	days.days=days.days+1
 	days.days[I]=idx[I]
-	days=days.reset_index(drop=True)
+	days=days.explode('days').reset_index(drop=True)
 	return days
 
