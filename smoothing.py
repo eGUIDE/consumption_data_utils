@@ -1,7 +1,6 @@
 import pandas as pd
 import numpy as np
-
-
+from datetime import timedelta
 
 def func(days,row):
 	if (row==(len(days)-1)):
@@ -18,13 +17,20 @@ def func(days,row):
 
 
 
+
 def smoothing_func(df):
 	df.transaction_date=pd.to_datetime(df.transaction_date)
 	df.transaction_date=df.transaction_date.dt.date
 	df.sort_values('transaction_date',inplace=True)
 	df['Nof_days']=-df.transaction_date.diff(periods=-1).dt.days	
 	days=df.groupby('transaction_date')['kWh_sold','Nof_days'].sum()
-	days['kWh_per_day']=days.kWh_sold/days.Nof_days
+	medians=df.Nof_days.median()
+	if medians >=10:
+		min_=days.Nof_days.min()
+		Nof_days=days.Nof_days.clip(min_,medians)
+		days['kWh_per_day']=days.kWh_sold/Nof_days
+	else:
+		days['kWh_per_day']=days.kWh_sold/days.Nof_days
 	idx=days.index
 	I=len(idx)-1
 	days=days.reset_index(drop=True).drop(columns='kWh_sold')
