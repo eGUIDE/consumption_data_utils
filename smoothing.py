@@ -3,9 +3,9 @@ import numpy as np
 from datetime import timedelta
 
 def func(days,row):
-	if (row==(len(days)-1)):
-		d=0
-	elif (row==0):
+	#if (row==(len(days)-1)):
+	#	d=0
+	if (row==0):
 		r=days.loc[row,'Nof_days']
 		d=np.arange(0,r)
 	else:
@@ -23,21 +23,27 @@ def smoothing_func(df):
 	df.transaction_date=df.transaction_date.dt.date
 	df.sort_values('transaction_date',inplace=True)
 	days=df.groupby('transaction_date')['kWh_sold'].sum().reset_index()
-	days['Nof_days']=-days.transaction_date.diff(periods=-1).dt.days	
-	medians=days.Nof_days.median()
-	if medians >=10:
-		min_=days.Nof_days.min()
-		Nof_days=days.Nof_days.clip(min_,medians)
-		days['kWh_per_day']=days.kWh_sold/Nof_days
-	else:
-		days['kWh_per_day']=days.kWh_sold/days.Nof_days
-	idx=days.transaction_date
-	I=len(idx)-1
-	days.drop(columns=['kWh_sold','transaction_date'],inplace=True)
-	days['days']=days.apply(lambda rows: func(days,rows.name),axis=1)
-	days.days=days.days+1
-	days.days[I]=idx[I]
-	days=days.explode('days').reset_index(drop=True)
-	return days
+	
+	if len(days)<=1:
+		days['Nof_days']=1
+		days.rename(columns={'transaction_date':'days','kWh_sold':'kWh_per_day'},inplace=True)
 
+	else:
+		days['Nof_days']=-days.transaction_date.diff(periods=-1).dt.days	
+		medians=days.Nof_days.median()
+		days.Nof_days=days.Nof_days.fillna(medians)
+		if medians >=10:
+			min_=days.Nof_days.min()
+			Nof_days=days.Nof_days.clip(min_,medians)
+			days['kWh_per_day']=days.kWh_sold/Nof_days
+		else:
+			days['kWh_per_day']=days.kWh_sold/days.Nof_days
+		idx=days.transaction_date
+		I=len(idx)-1
+		days.drop(columns=['kWh_sold','transaction_date'],inplace=True)
+		days['days']=days.apply(lambda rows: func(days,rows.name),axis=1)
+		days.days=days.days+1
+		days=days.explode('days').reset_index(drop=True)
+		days.days[0]=idx[0]
+	return days
 
