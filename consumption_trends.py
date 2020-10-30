@@ -19,12 +19,13 @@ def get_data_by_calendar_month(data, transaction_date_param,consumption_param,mo
     #import ipdb; ipdb.set_trace()
     frequency_summary_for_yr = {} 
     for name, group in  grouped_data:
+        agg_output = group.groupby(['meter_serial_number','consumer_id']).agg({consumption_param:'sum'})
         #token =  str(name) 
-        cur_output = cbook.boxplot_stats(group[consumption_param],labels=[name])
-        cur_output[0]['count'] = group.shape[0]
+        cur_output = cbook.boxplot_stats(agg_output[consumption_param],labels=[name])
+        cur_output[0]['count'] = agg_output.shape[0]
         frequency_summary_for_yr[name] = cur_output[0]        
    
-    pickle.dump(frequency_summary_for_yr, open('data/reg_summary_{}_{}_{}_data.pck'.format(frequency,mode,district),'wb')) 
+    pickle.dump(frequency_summary_for_yr, open('data/summary/reg_summary_{}_{}_{}_data.pck'.format(frequency,mode,district),'wb')) 
     
 
 if __name__ == '__main__':
@@ -32,7 +33,8 @@ if __name__ == '__main__':
     transaction_datafile = '/mnt/nfs/eguide/projects/electricity_prediction/data/REG_data/REG_transaction_data.pck'
     transaction_data = pickle.load(open(transaction_datafile,'rb'))
     meta_data =  pickle.load(open(meta_datafile,'rb'))
-    meta_data['District'] =  meta_data.district.apply(lambda x: x[0].upper())
+    meta_data = meta_data.explode('District')
+    #meta_data['District'] =  meta_data.district.apply(lambda x: x[0].upper())
     # drop negative values
     print('There are initially {} entries in the transaction file'.format(transaction_data.shape[0]))
     transaction_data = transaction_data[transaction_data.kWh_sold >=0]
@@ -43,16 +45,22 @@ if __name__ == '__main__':
     transaction_data = transaction_data[~transaction_data.tariff_name.isin(['TVA tax','Regulatory_Fee','Rura_fee'])]
     print('There are {} entries in the transaction file after dropping TVA tax, Regulatory_Fee, Rura_fee'.format(transaction_data.shape[0]))
 
-    #transaction_data = transaction_data[transaction_data.tariff_name.isin(['Non Residential','Non residential_Seq','Hotels_Seq'])]
-    #print('There are {} entries in the transaction file with residential consumption'.format(transaction_data.shape[0]))
+    #merged_data = pd.merge(transaction_data,meta_data, on=['meter_serial_number','consumer_id'])
+    #del transaction_data
+    #del meta_data
+    #merged_data = merged_data.explode('vending_category_name')
+    #merged_data = merged_data[~merged_data.vending_category_name.isin(['10. Residential','2. T1 Tx FC1 AR STS'])]
+    #print('There are {} entries in the transaction file with residential consumption'.format(merged_data.shape[0]))
     #pickle.dump(transaction_data, open('data/actual_consumption_data_reg.pck','wb'))
     ## residential is :
     ## non-residential is: 
-
+    #del transaction_data
+    #del meta_data
     transaction_param = 'transaction_date'
     consumption_param = 'kWh_sold'
     frequency = 'by_month'
     mode = 'all'
+    #district = 'all'
     
     for district in meta_data.District.unique():
         cur_meta =  meta_data[meta_data.District == district][['meter_serial_number','consumer_id','District']]
