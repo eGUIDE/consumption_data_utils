@@ -36,9 +36,6 @@ def smoothing_func(df):
 		I=len(idx)-1
 		days.drop(columns=['kWh_sold','transaction_date'],inplace=True)
 		days['days']=days.Nof_days.apply(lambda rows: np.arange(rows))
-		
-		#days['days']=days.apply(lambda rows: func(days,rows.name),axis=1)
-		#days.days=days.days+1
 		days=days.explode('days').reset_index(drop=True)
 		if medians >=10:
 			days.loc[days.days>medians,'kWh_per_day']=0
