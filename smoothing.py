@@ -1,6 +1,10 @@
 import pandas as pd
 import numpy as np
 from datetime import timedelta
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt 
+import matplotlib.dates as mdates
 
 def func(days,row):
 	#if (row==(len(days)-1)):
@@ -17,12 +21,15 @@ def func(days,row):
 
 
 
-
 def smoothing_func(df):
-	df.transaction_date=pd.to_datetime(df.transaction_date)
-	df.transaction_date=df.transaction_date.dt.date
-	df.sort_values('transaction_date',inplace=True)
-	days=df.groupby('transaction_date')['kWh_sold'].sum().reset_index()
+	
+	if len(df)<1:
+		return print('Input dataframe must contain atleast one transaction'),[]
+	else:
+		df.transaction_date=pd.to_datetime(df.transaction_date)
+		df.transaction_date=df.transaction_date.dt.date
+		df.sort_values('transaction_date',inplace=True)
+		days=df.groupby('transaction_date')['kWh_sold'].sum().reset_index()
 	
 	if len(days)<=1:
 		days['Nof_days']=1
@@ -41,9 +48,13 @@ def smoothing_func(df):
 		idx=days.transaction_date
 		I=len(idx)-1
 		days.drop(columns=['kWh_sold','transaction_date'],inplace=True)
-		days['days']=days.apply(lambda rows: func(days,rows.name),axis=1)
-		days.days=days.days+1
+		days['days']=days.Nof_days.apply(lambda rows: np.arange(rows))
+		
+		#days['days']=days.apply(lambda rows: func(days,rows.name),axis=1)
+		#days.days=days.days+1
 		days=days.explode('days').reset_index(drop=True)
-		days.days[0]=idx[0]
-	return days
+		if medians >=10:
+			days.loc[days.days>medians,'kWh_per_day']=0
+	days.days=days.index.values+1
+	return days,idx[0]
 
