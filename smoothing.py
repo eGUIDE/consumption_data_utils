@@ -8,7 +8,7 @@ import matplotlib.dates as mdates
 
 
 
-def smoothing_func2(df):
+def smoothing_func(df):
 	
 	if len(df)<1:
 		return print('Input dataframe must contain atleast one transaction'),[]
