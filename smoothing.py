@@ -6,9 +6,9 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt 
 import matplotlib.dates as mdates
 
+'The smoothing function takes in customer transaction dataframe df, as well as high frequency value frq'
 
-
-def smoothing_func(df):
+def smoothing_func(df,frq):
 	
 	if len(df)<1:
 		return print('Input dataframe must contain atleast one transaction'),[]
@@ -27,7 +27,7 @@ def smoothing_func(df):
 		days['Nof_days']=-days.transaction_date.diff(periods=-1).dt.days	
 		medians=days.Nof_days.median()
 		days.Nof_days=days.Nof_days.fillna(medians)
-		if medians >=3:
+		if medians >=frq:
 			min_=days.Nof_days.min()
 			Nof_days=days.Nof_days.clip(min_,medians)
 			days['kWh_per_day']=days.kWh_sold/Nof_days
@@ -43,7 +43,7 @@ def smoothing_func(df):
 		earliest_transaction_date = days.transaction_date.min()
 		days['days']=days.Nof_days.apply(lambda rows: np.arange(rows))
 		days_daily=days.explode('days').reset_index(drop=True)
-		if medians >=3:
+		if medians >=frq:
 			days_daily=days_daily[days_daily.days<=medians]
 			days_daily.days=days_daily.index.values+1
 		else:
