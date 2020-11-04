@@ -7,7 +7,8 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 
 
-def smoothing_func(df):
+
+def smoothing_func2(df):
 	
 	if len(df)<1:
 		return print('Input dataframe must contain atleast one transaction'),[]
@@ -26,19 +27,29 @@ def smoothing_func(df):
 		days['Nof_days']=-days.transaction_date.diff(periods=-1).dt.days	
 		medians=days.Nof_days.median()
 		days.Nof_days=days.Nof_days.fillna(medians)
-		if medians >=10:
+		if medians >=3:
 			min_=days.Nof_days.min()
 			Nof_days=days.Nof_days.clip(min_,medians)
 			days['kWh_per_day']=days.kWh_sold/Nof_days
 		else:
-			days['kWh_per_day']=days.kWh_sold/days.Nof_days
-		idx=days.transaction_date
-		I=len(idx)-1
-		days.drop(columns=['kWh_sold','transaction_date'],inplace=True)
+			normlzd=days.kWh_sold/days.Nof_days
+			qtl=normlzd.quantile(0.1)
+			I=days[normlzd<qtl].index
+			Nof_days=days.Nof_days.copy()
+			Nof_days[I]=np.ceil(days.kWh_sold[I]/qtl)
+			days['normlzd']=Nof_days
+			max_=normlzd.max()
+			days['kWh_per_day']=normlzd.clip(qtl,max_)
+		earliest_transaction_date = days.transaction_date.min()
 		days['days']=days.Nof_days.apply(lambda rows: np.arange(rows))
-		days=days.explode('days').reset_index(drop=True)
-		if medians >=10:
-			days.loc[days.days>medians,'kWh_per_day']=0
-		days.days=days.index.values+1
-		earliest_transaction_date = idx.min()
-	return days,earliest_transaction_date
+		days_daily=days.explode('days').reset_index(drop=True)
+		if medians >=3:
+			days_daily=days_daily[days_daily.days<=medians]
+			days_daily.days=days_daily.index.values+1
+		else:
+			days_daily=days_daily[days_daily.normlzd>days_daily.days]
+			days_daily.days=days_daily.index.values+1
+			days_daily.drop(columns='normlzd',inplace=True)
+		days_daily.drop(columns=['kWh_sold','transaction_date'],inplace=True)
+	return days_daily,earliest_transaction_date
+
