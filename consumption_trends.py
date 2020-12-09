@@ -30,20 +30,21 @@ def get_data_by_calendar_month(data, transaction_date_param,consumption_param,mo
 
 if __name__ == '__main__':
     meta_datafile = '/mnt/nfs/eguide/projects/electricity_prediction/data/REG_data/REG_metadata.pck'  # file containing raw data
-    transaction_datafile = '/mnt/nfs/eguide/projects/electricity_prediction/data/REG_data/REG_transaction_data.pck'
+    #transaction_datafile = '/mnt/nfs/eguide/projects/electricity_prediction/data/REG_data/REG_transaction_data.pck'
+    transaction_datafile = '/mnt/nfs/eguide/projects/electricity_prediction/data/REG_data/REG_transaction_amount_data.pck'
     transaction_data = pickle.load(open(transaction_datafile,'rb'))
     meta_data =  pickle.load(open(meta_datafile,'rb'))
-    meta_data = meta_data.explode('District')
+    #meta_data = meta_data.explode('District')
     #meta_data['District'] =  meta_data.district.apply(lambda x: x[0].upper())
     # drop negative values
     print('There are initially {} entries in the transaction file'.format(transaction_data.shape[0]))
-    transaction_data = transaction_data[transaction_data.kWh_sold >=0]
+    #transaction_data = transaction_data[transaction_data.kWh_sold >=0]
     print('There are {} entries in the transaction file after dropping negative consumptions'.format(transaction_data.shape[0]))
 
     #import ipdb; ipdb.set_trace()
     # remove regulatory & tva 
-    transaction_data = transaction_data[~transaction_data.tariff_name.isin(['TVA tax','Regulatory_Fee','Rura_fee'])]
-    print('There are {} entries in the transaction file after dropping TVA tax, Regulatory_Fee, Rura_fee'.format(transaction_data.shape[0]))
+    transaction_data = transaction_data[transaction_data.tariff_name.isin(['TVA tax','Regulatory_Fee','Rura_fee'])]
+    #print('There are {} entries in the transaction file after dropping TVA tax, Regulatory_Fee, Rura_fee'.format(transaction_data.shape[0]))
 
     #merged_data = pd.merge(transaction_data,meta_data, on=['meter_serial_number','consumer_id'])
     #del transaction_data
@@ -57,14 +58,15 @@ if __name__ == '__main__':
     #del transaction_data
     #del meta_data
     transaction_param = 'transaction_date'
-    consumption_param = 'kWh_sold'
+    #consumption_param = 'kWh_sold'
+    consumption_param = 'amount'
     frequency = 'by_month'
-    mode = 'all'
-    #district = 'all'
+    mode = 'fixed_amounts'
+    district = 'all'
     
-    for district in meta_data.District.unique():
-        cur_meta =  meta_data[meta_data.District == district][['meter_serial_number','consumer_id','District']]
-        merged_data = pd.merge(transaction_data,cur_meta, on=['meter_serial_number','consumer_id'])
-        print('For district {}, there are {} transactions'.format(district,merged_data.shape[0]))
-        get_data_by_calendar_month(merged_data,transaction_param,consumption_param,mode,frequency,district)
-
+    #for district in meta_data.District.unique():
+    #    cur_meta =  meta_data[meta_data.District == district][['meter_serial_number','consumer_id','District']]
+    #    merged_data = pd.merge(transaction_data,cur_meta, on=['meter_serial_number','consumer_id'])
+    #    print('For district {}, there are {} transactions'.format(district,merged_data.shape[0]))
+    #    get_data_by_calendar_month(merged_data,transaction_param,consumption_param,mode,frequency,district)
+    get_data_by_calendar_month(transaction_data,transaction_param,consumption_param,mode,frequency,district)

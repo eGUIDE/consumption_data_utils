@@ -9,6 +9,7 @@ if __name__ == '__main__':
     transaction_data = pickle.load(open(transaction_datafile,'rb'))
     # remove regulatory & tva 
     transaction_data = transaction_data[~transaction_data.tariff_name.isin(['TVA tax','Regulatory_Fee','Rura_fee'])]
+    transaction_data = transaction_data[transaction_data.kWh_sold>=0]
     print('There are {} entries in the transaction file after dropping TVA tax, Regulatory_Fee, Rura_fee'.format(transaction_data.shape[0]))
 
     unique_consumer_ids = transaction_data.consumer_id.unique().tolist()

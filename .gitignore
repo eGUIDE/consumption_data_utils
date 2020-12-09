@@ -1,2 +1,4 @@
 data/
 slurm_logs/
+*out
+*err

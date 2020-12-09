@@ -25,10 +25,12 @@ if __name__ == '__main__':
     months = []
     years = []
     kWhs  = []
+    threshold = 3
     #days = []
+    print('Starting file:',filename)
     for idx, item in enumerate(unique_consumers):
         tmp_df = df[df.consumer_id == item]
-        daily_profile, first_transaction_date = sm.smoothing_func(tmp_df) 
+        daily_profile, first_transaction_date = sm.smoothing_func(tmp_df,threshold) 
         consumer_id, month,year,consumption = get_monthly_profile(daily_profile,item,first_transaction_date)
         consumer_ids.append(consumer_id)
         months.append(month)
@@ -51,3 +53,4 @@ if __name__ == '__main__':
     #monthly_profiles['days'] =  days
 
     monthly_profiles.to_pickle(os.path.join(savepath,filename))
+    print('Done with all items in file')
