@@ -7,4 +7,7 @@ This repo holds utility functions for analyzing electricity consumption data.
 # work flow
 * We start by creating separate "meta" and "transactions" files. The meta file consists of unique customer number, date on which they recieved an electricity connection as well as their vending category ie residential or non residential. The transactions file consists of all prepaid transactions and the dates on which they occur. We generate the two files by running the terminal command
    *  `$ sbatch generate_meta_and_transactions.sh`
-* After generating the meta and transactions files, we smooth out electricity consumption for each customer so as to get a cleaner aggregation for monthly consuption. To do this, we need to change directory and move to the `smoothing_process_files` directory. 
+* After generating the meta and transactions files, we smooth out electricity consumption for each customer so as to get a cleaner aggregation for monthly consuption. To do this, we need to change directory and move to the `smoothing_process_files` directory. There, we can enter the directory paths we need to read from or save to. We then run commands:
+    *  `sbatch grouped_data_chunks.sh` : This splits the data into chuncks that will be run in parallel. it will take a few minutes to run.
+    *  `sbatch create_shell_batch_smoothing.sh` : This command does the actual smoothing of data takes a few hours to run.
+    *  `sbatch merge_pickles.sh` :   This merges all the data chunks that were run in parallel to generate a single file of smoothed transactions on which we run our analysis.
