@@ -1,0 +1,14 @@
+
+consumer_id_col : 'consumer_id'
+transaction_date_param : 'transaction_date'
+consumption_param : 'kWh_sold'
+freq_threshold : 3
+drp_rows :
+        'tariff_name' : ['TVA tax','Regulatory_Fee','Rura_fee'] 
+
+
+meta_datafile_path : '/home/jtaneja/work/projects/smallcommercial/REG/REG_metadata.pck'
+transaction_datafile_path : '/home/jtaneja/work/projects/smallcommercial/REG/REG_transaction_data.pck' 
+batch_files_path : '/mnt/nfs/work1/jtaneja/jtaneja/projects/smallcommercial/eGUIDE/consumption_data_utils/'
+smoothed_outputfile : '/mnt/nfs/work1/jtaneja/jtaneja/projects/smallcommercial/eGUIDE/consumption_data_utils/smoothing_process_files/final_smoothed.pck'
+

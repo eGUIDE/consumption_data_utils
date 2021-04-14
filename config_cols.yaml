@@ -1,0 +1,17 @@
+consumer_id_col : 'consumer_id'
+transaction_date_param : 'transaction_date'
+consumption_param : 'kWh_sold'
+installation_date : 'installation_date'
+freq_threshold : 3
+meta_datafile_path : '/home/jtaneja/work/projects/smallcommercial/REG/REG_metadata.pck'
+transaction_datafile_path : '/home/jtaneja/work/projects/smallcommercial/REG/REG_transaction_data.pck' 
+batch_files_path : '/mnt/nfs/work1/jtaneja/jtaneja/projects/smallcommercial/eGUIDE/consumption_data_utils/'
+
+customer_type_colname : 'vending_category_name' 
+residential_rows : ['10. Residential','2. T1 Tx FC1 AR STS']
+
+drp_rows :
+        'tariff_name' : ['TVA tax','Regulatory_Fee','Rura_fee'] 
+
+
+#consumption_param = 'amount'
