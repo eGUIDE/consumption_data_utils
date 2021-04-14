@@ -13,3 +13,4 @@ This repo holds utility functions for analyzing electricity consumption data.
     *  `sbatch grouped_data_chunks.sh` : This splits the data into chuncks that will be run in parallel. it will take a few minutes to run.
     *  `sbatch create_shell_batch_smoothing.sh` : This command does the actual smoothing of data takes a few hours to run.
     *  `sbatch merge_pickles.sh` :   This merges all the data chunks that were run in parallel to generate a single file of smoothed transactions on which we run our analysis.
+## Analysis
